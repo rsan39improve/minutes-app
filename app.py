@@ -33,7 +33,7 @@ st.markdown(
     .stButton {padding-left: 0 !important; padding-right: 0 !important;}
     .stButton > button {
         width: 100%;
-        background-color: #1a1a1a;
+        background-color: #e23d10;
         color: #ffffff;
         font-size: 1.1rem;
         font-weight: bold;
@@ -43,7 +43,7 @@ st.markdown(
         letter-spacing: 0.05em;
         display: block;
     }
-    .stButton > button:hover {background-color: #3a3a3a;}
+    .stButton > button:hover {background-color: #e23d10;}
     .stButton > button:disabled {background-color: #aaaaaa; color: #eeeeee;}
 
     /* ボタン行の余白を除去して横幅を揃える */
