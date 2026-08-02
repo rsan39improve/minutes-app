@@ -27,24 +27,87 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    .block-container {max-width: 780px; padding-top: 1.8rem;}
+    :root {
+        --bg: #f5f2ee;
+        --surface: #ffffff;
+        --surface-2: #efece5;
+        --border: #e2ddd3;
+        --border-strong: #cdc5b7;
+        --text: #1c1815;
+        --text-muted: #6f6a60;
+        --text-faint: #948d80;
+        --accent: #d63d13;
+        --accent-hover: #e94a1f;
+        --success: #1c8a5c;
+        --success-hover: #23a56f;
+    }
+
+    html, body, .stApp {
+        background-color: var(--bg) !important;
+        color: var(--text);
+    }
+    html, body, [class*="css"] {
+        font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans",
+            "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Noto Sans JP", sans-serif !important;
+    }
+
+    .block-container {max-width: 760px; padding-top: 2.2rem;}
+
+    /* タイトル */
+    h1 {
+        font-size: 2rem !important;
+        font-weight: 800 !important;
+        letter-spacing: -0.01em;
+        color: var(--text) !important;
+    }
+    [data-testid="stCaptionContainer"] {
+        color: var(--text-faint) !important;
+    }
+
+    /* セクション見出し（入力情報） */
+    h3 {
+        font-size: 0.8rem !important;
+        font-weight: 700 !important;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--text-muted) !important;
+    }
+
+    /* カード（各入力ステップ・プレビュー枠） */
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        background: var(--surface);
+        border: 1px solid var(--border) !important;
+        border-radius: 12px !important;
+        margin-bottom: 12px;
+    }
+    [data-testid="stExpander"] {
+        border: 1px solid var(--border) !important;
+        border-radius: 12px !important;
+        background: var(--surface) !important;
+    }
+    [data-testid="stAlert"] { border-radius: 10px !important; }
 
     /* メインボタン */
     .stButton {padding-left: 0 !important; padding-right: 0 !important;}
     .stButton > button {
         width: 100%;
-        background-color: #e23d10;
+        background: linear-gradient(180deg, var(--accent-hover) 0%, var(--accent) 100%);
         color: #ffffff;
-        font-size: 1.1rem;
-        font-weight: bold;
-        padding: 0.75rem 1rem;
-        border-radius: 5px;
+        font-size: 1.05rem;
+        font-weight: 700;
+        padding: 0.8rem 1rem;
+        border-radius: 10px;
         border: none;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.02em;
         display: block;
+        box-shadow: 0 8px 24px -8px rgba(214, 61, 19, 0.45);
     }
-    .stButton > button:hover {background-color: #e23d10;}
-    .stButton > button:disabled {background-color: #aaaaaa; color: #eeeeee;}
+    .stButton > button:hover {filter: brightness(1.06);}
+    .stButton > button:disabled {
+        background: var(--border-strong);
+        color: #ffffff;
+        box-shadow: none;
+    }
 
     /* ボタン行の余白を除去して横幅を揃える */
     div[data-testid="column"] .stButton > button,
@@ -56,23 +119,36 @@ st.markdown(
     /* ダウンロードボタン */
     .stDownloadButton > button {
         width: 100%;
-        background-color: #1e6f3e;
+        background-color: var(--success);
         color: #ffffff;
-        font-size: 1.05rem;
-        font-weight: bold;
-        padding: 0.7rem 1rem;
-        border-radius: 5px;
+        font-size: 1.0rem;
+        font-weight: 700;
+        padding: 0.75rem 1rem;
+        border-radius: 10px;
         border: none;
     }
-    .stDownloadButton > button:hover {background-color: #258a4e;}
+    .stDownloadButton > button:hover {background-color: var(--success-hover);}
 
     /* セクション区切り */
-    hr {border-color: #dddddd;}
+    hr {border-color: var(--border) !important;}
 
     /* ラベル */
-    label {font-weight: 600 !important;}
+    label {font-weight: 600 !important; color: var(--text) !important;}
+
+    /* テキスト入力 */
+    .stTextInput input {
+        background-color: var(--surface-2) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 8px !important;
+        color: var(--text) !important;
+    }
 
     /* ファイルアップローダーの英語テキストを日本語に上書き */
+    [data-testid="stFileUploaderDropzone"] {
+        background-color: var(--surface-2) !important;
+        border: 1px dashed var(--border-strong) !important;
+        border-radius: 9px !important;
+    }
     /* ドラッグ＆ドロップテキスト部分を非表示 */
     [data-testid="stFileUploaderDropzone"] small,
     [data-testid="stFileUploaderDropzone"] span {
@@ -83,7 +159,7 @@ st.markdown(
         content: 'ここにファイルをドラッグ＆ドロップ';
         display: block;
         text-align: center;
-        color: #666666;
+        color: var(--text-faint);
         font-size: 0.9rem;
         padding: 0.6rem 0 0.3rem 0;
     }
@@ -95,7 +171,7 @@ st.markdown(
     [data-testid="stFileUploaderDropzone"] button::after {
         content: 'ファイルを選択';
         font-size: 0.875rem;
-        color: #333333;
+        color: var(--text);
     }
     </style>
     """,
@@ -117,15 +193,15 @@ if not api_key:
 st.subheader("入力情報")
 
 # ── ファイルアップロード ──
-col1, col2 = st.columns(2)
-with col1:
+with st.container(border=True):
     st.markdown("**① 文字起こしテキスト** （必須）")
     transcript_file = st.file_uploader(
         "録音アプリが出力したテキストファイル",
         type=["txt", "docx"],
         key="transcript",
     )
-with col2:
+
+with st.container(border=True):
     st.markdown("**② 会議資料** （任意）")
     agenda_file = st.file_uploader(
         "当日の会議資料を貼り付けてください。",
@@ -133,27 +209,26 @@ with col2:
         key="agenda",
     )
 
-st.markdown("")
-
 # ── テキスト入力 ──
-col3, col4 = st.columns(2)
-with col3:
+with st.container(border=True):
     location_input = st.text_input(
         "③ 開催場所",
         placeholder="例：本社会議室A　／　オンライン会議",
     )
-with col4:
+
+with st.container(border=True):
     district_input = st.text_input(
         "④ 地区名",
         placeholder="例：○○地区",
         help="Wordファイルのページ上部（ヘッダー）に表示されます。",
     )
 
-meeting_name_input = st.text_input(
-    "⑤ 会議名（任意・AIが自動推測します）",
-    placeholder="例：第3回プロジェクト定例打合せ　　← 空欄でもAIが文字起こしから推測します",
-    help="入力した場合、AIの推測より優先されます。",
-)
+with st.container(border=True):
+    meeting_name_input = st.text_input(
+        "⑤ 会議名（任意・AIが自動推測します）",
+        placeholder="例：第3回プロジェクト定例打合せ　　← 空欄でもAIが文字起こしから推測します",
+        help="入力した場合、AIの推測より優先されます。",
+    )
 
 st.divider()
 
