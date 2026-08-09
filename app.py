@@ -1,22 +1,27 @@
 """
 議事録自動生成ツール - Streamlit メイン画面
-文字起こしテキスト + 会議資料PDF をアップロードして
-固定様式の Word ファイルをダウンロードする。
+Synclogの発言ログ（貼り付け or ファイル）と当日資料・打合せ次第から
+会社ひな型の Word を生成する。
 """
 
+from __future__ import annotations
+
 import os
+import time
 from datetime import datetime
 
 import streamlit as st
 from dotenv import load_dotenv
 
-from extractor import extract_text_from_pdf, extract_text_from_txt
+from extractor import extract_text_from_upload, normalize_transcript
 from llm_client import extract_minutes
+from number_check import apply_number_check, collect_confirmation_tags
 from word_builder import build_minutes_docx
 
 load_dotenv()
 
-# ===== ページ設定 =====
+SESSION_TTL_SEC = 24 * 60 * 60  # 24時間
+
 st.set_page_config(
     page_title="議事録自動作成ツール",
     page_icon="📋",
@@ -40,6 +45,7 @@ st.markdown(
         --accent-hover: #e94a1f;
         --success: #1c8a5c;
         --success-hover: #23a56f;
+        --warn: #b45309;
     }
 
     html, body, .stApp {
@@ -53,18 +59,14 @@ st.markdown(
 
     .block-container {max-width: 760px; padding-top: 2.2rem;}
 
-    /* タイトル */
     h1 {
         font-size: 2rem !important;
         font-weight: 800 !important;
         letter-spacing: -0.01em;
         color: var(--text) !important;
     }
-    [data-testid="stCaptionContainer"] {
-        color: var(--text-faint) !important;
-    }
+    [data-testid="stCaptionContainer"] { color: var(--text-faint) !important; }
 
-    /* セクション見出し（入力情報） */
     h3 {
         font-size: 0.8rem !important;
         font-weight: 700 !important;
@@ -73,7 +75,6 @@ st.markdown(
         color: var(--text-muted) !important;
     }
 
-    /* カード（各入力ステップ・プレビュー枠） */
     div[data-testid="stVerticalBlockBorderWrapper"] {
         background: var(--surface);
         border: 1px solid var(--border) !important;
@@ -87,7 +88,6 @@ st.markdown(
     }
     [data-testid="stAlert"] { border-radius: 10px !important; }
 
-    /* メインボタン */
     .stButton {padding-left: 0 !important; padding-right: 0 !important;}
     .stButton > button {
         width: 100%;
@@ -109,14 +109,6 @@ st.markdown(
         box-shadow: none;
     }
 
-    /* ボタン行の余白を除去して横幅を揃える */
-    div[data-testid="column"] .stButton > button,
-    .element-container .stButton > button {
-        margin-left: 0;
-        margin-right: 0;
-    }
-
-    /* ダウンロードボタン */
     .stDownloadButton > button {
         width: 100%;
         background-color: var(--success);
@@ -129,32 +121,23 @@ st.markdown(
     }
     .stDownloadButton > button:hover {background-color: var(--success-hover);}
 
-    /* セクション区切り */
     hr {border-color: var(--border) !important;}
-
-    /* ラベル */
     label {font-weight: 600 !important; color: var(--text) !important;}
 
-    /* テキスト入力 */
-    .stTextInput input {
+    .stTextInput input, .stTextArea textarea {
         background-color: var(--surface-2) !important;
         border: 1px solid var(--border) !important;
         border-radius: 8px !important;
         color: var(--text) !important;
     }
 
-    /* ファイルアップローダーの英語テキストを日本語に上書き */
     [data-testid="stFileUploaderDropzone"] {
         background-color: var(--surface-2) !important;
         border: 1px dashed var(--border-strong) !important;
         border-radius: 9px !important;
     }
-    /* ドラッグ＆ドロップテキスト部分を非表示 */
     [data-testid="stFileUploaderDropzone"] small,
-    [data-testid="stFileUploaderDropzone"] span {
-        display: none !important;
-    }
-    /* 上書き表示 */
+    [data-testid="stFileUploaderDropzone"] span { display: none !important; }
     [data-testid="stFileUploaderDropzone"]::before {
         content: 'ここにファイルをドラッグ＆ドロップ';
         display: block;
@@ -163,7 +146,6 @@ st.markdown(
         font-size: 0.9rem;
         padding: 0.6rem 0 0.3rem 0;
     }
-    /* "Browse files" ボタン文字を非表示にして日本語で上書き */
     [data-testid="stFileUploaderDropzone"] button {
         font-size: 0 !important;
         color: transparent !important;
@@ -173,165 +155,252 @@ st.markdown(
         font-size: 0.875rem;
         color: var(--text);
     }
+
+    .confirm-box {
+        background: #fff7ed;
+        border: 1px solid #fdba74;
+        border-radius: 10px;
+        padding: 0.9rem 1rem;
+        margin: 0.6rem 0 1rem 0;
+    }
+    .confirm-box strong { color: var(--warn); }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-# ===== ヘッダー =====
-st.title("📋 議事録自動作成ツール")
-st.caption("ファイルをアップしてボタンを押すだけで、議事録ファイルが完成します。")
 
-st.divider()
+def _get_secret(name: str) -> str:
+    env_val = os.getenv(name, "")
+    if env_val:
+        return env_val
+    try:
+        return st.secrets.get(name, "") or ""
+    except Exception:
+        return ""
 
-# ===== APIキー確認 =====
-api_key = os.getenv("ANTHROPIC_API_KEY") or st.secrets.get("ANTHROPIC_API_KEY", "")
-if not api_key:
-    st.warning("⚠️ 管理者設定が未完了のため、現在使用できません。管理者にお問い合わせください。")
 
-# ===== 入力エリア =====
-st.subheader("入力情報")
+def _is_authenticated() -> bool:
+    if not st.session_state.get("auth_ok"):
+        return False
+    ts = st.session_state.get("auth_ts")
+    if not ts:
+        return False
+    if time.time() - float(ts) > SESSION_TTL_SEC:
+        st.session_state.auth_ok = False
+        st.session_state.auth_ts = None
+        return False
+    return True
 
-# ── ファイルアップロード ──
-with st.container(border=True):
-    st.markdown("**① 文字起こしテキスト** （必須）")
-    transcript_file = st.file_uploader(
-        "録音アプリが出力したテキストファイル",
-        type=["txt", "docx"],
-        key="transcript",
-    )
 
-with st.container(border=True):
-    st.markdown("**② 会議資料** （任意）")
-    agenda_file = st.file_uploader(
-        "当日の会議資料を貼り付けてください。",
-        type=["pdf"],
-        key="agenda",
-    )
+def render_login() -> None:
+    st.title("📋 議事録自動作成ツール")
+    st.caption("社内限定ツールです。パスワードを入力してください。")
+    st.divider()
 
-# ── テキスト入力 ──
-with st.container(border=True):
-    location_input = st.text_input(
-        "③ 開催場所",
-        placeholder="例：本社会議室A　／　オンライン会議",
-    )
+    expected = _get_secret("APP_ACCESS_PASSWORD")
+    if not expected:
+        st.warning("⚠️ 管理者設定（アクセスパスワード）が未完了のため、現在使用できません。")
+        return
 
-with st.container(border=True):
-    district_input = st.text_input(
-        "④ 地区名",
-        placeholder="例：○○地区",
-        help="Wordファイルのページ上部（ヘッダー）に表示されます。",
-    )
+    with st.form("login_form"):
+        password = st.text_input("パスワード", type="password")
+        submitted = st.form_submit_button("入室する", type="primary")
+        if submitted:
+            if password == expected:
+                st.session_state.auth_ok = True
+                st.session_state.auth_ts = time.time()
+                st.rerun()
+            else:
+                st.error("パスワードが正しくありません。")
 
-with st.container(border=True):
-    meeting_name_input = st.text_input(
-        "⑤ 会議名（任意・AIが自動推測します）",
-        placeholder="例：第3回プロジェクト定例打合せ　　← 空欄でもAIが文字起こしから推測します",
-        help="入力した場合、AIの推測より優先されます。",
-    )
 
-st.divider()
-
-# ===== プレビュー =====
-if transcript_file:
-    with st.expander("会議内容を確認する", expanded=False):
-        try:
-            text_preview = extract_text_from_txt(transcript_file.read())
-            transcript_file.seek(0)
-            st.text_area(
-                "",
-                text_preview[:1500] + ("..." if len(text_preview) > 1500 else ""),
-                height=160,
+def _input_block(
+    title: str,
+    key_prefix: str,
+    *,
+    required: bool,
+    file_types: list[str],
+    paste_placeholder: str,
+    help_text: str = "",
+) -> tuple[str, list[str]]:
+    """
+    貼り付け / ファイルの切替付き入力ブロック。
+    Returns: (text, warnings)
+    """
+    warnings: list[str] = []
+    req_label = "必須" if required else "任意"
+    with st.container(border=True):
+        st.markdown(f"**{title}** （{req_label}）")
+        if help_text:
+            st.caption(help_text)
+        method = st.radio(
+            "入力方法",
+            ["直接貼り付け", "ファイルをアップロード"],
+            horizontal=True,
+            key=f"{key_prefix}_method",
+            label_visibility="collapsed",
+        )
+        text = ""
+        if method == "直接貼り付け":
+            text = st.text_area(
+                "テキスト",
+                height=180 if required else 120,
+                placeholder=paste_placeholder,
+                key=f"{key_prefix}_paste",
+                label_visibility="collapsed",
             )
-        except Exception as e:
-            st.error(f"テキスト読み込みエラー: {e}")
-
-# ===== 生成ボタン =====
-generate_disabled = transcript_file is None or not api_key
-
-st.button(
-    "📝 議事録を作成する",
-    disabled=generate_disabled,
-    key="generate_btn",
-    type="primary",
-)
-
-if st.session_state.get("generate_btn"):
-    with st.spinner("AIが議事録を解析中... しばらくお待ちください（30秒〜1分程度）"):
-        try:
-            transcript_bytes = transcript_file.read()
-            transcript_text = extract_text_from_txt(transcript_bytes)
-
-            agenda_text = ""
-            if agenda_file:
-                agenda_bytes = agenda_file.read()
-                agenda_text = extract_text_from_pdf(agenda_bytes)
-
-            minutes_data = extract_minutes(
-                transcript_text,
-                agenda_text,
-                location_override=location_input.strip(),
+        else:
+            uploaded = st.file_uploader(
+                "ファイル",
+                type=file_types,
+                key=f"{key_prefix}_file",
+                label_visibility="collapsed",
             )
+            if uploaded is not None:
+                extracted, warn = extract_text_from_upload(uploaded.read(), uploaded.name)
+                if warn:
+                    warnings.append(warn)
+                text = extracted or ""
+    return (text or "").strip(), warnings
 
-            # 会議名を手動入力で上書き
-            if meeting_name_input.strip():
-                minutes_data["meeting_name"] = meeting_name_input.strip()
 
-            docx_bytes = build_minutes_docx(
-                minutes_data,
-                district=district_input.strip(),
-            )
+def render_preview(minutes_data: dict) -> None:
+    confirms = collect_confirmation_tags(minutes_data)
+    if confirms:
+        st.markdown(
+            f'<div class="confirm-box"><strong>要確認が {len(confirms)} 件あります</strong>'
+            f"<br>Word内でも赤字表示されます。ダウンロード前に内容を確認してください。</div>",
+            unsafe_allow_html=True,
+        )
+        with st.expander("要確認一覧", expanded=True):
+            for c in confirms:
+                st.markdown(f"- `{c}`")
+    else:
+        st.success("要確認タグは検出されませんでした。念のため本文も確認してください。")
 
-            st.success("✅ 議事録の生成が完了しました！")
+    with st.expander("生成内容プレビュー", expanded=True):
+        for topic in minutes_data.get("議題") or []:
+            st.markdown(f"### {topic.get('番号', '')}{topic.get('見出し', '')}")
+            for sub in topic.get("小項目") or []:
+                st.markdown(f"**{sub.get('番号', '')}{sub.get('見出し', '')}**")
+                if sub.get("説明"):
+                    st.markdown(sub["説明"])
+                for qa in sub.get("質疑") or []:
+                    speaker = qa.get("話者", "")
+                    st.markdown(f"- 質問（話者:{speaker}）: {qa.get('質問', '')}")
+                    st.markdown(f"- 回答: －{qa.get('回答', '').lstrip('－').lstrip('-')}")
+        st.markdown(f"**次回打合せ：** {minutes_data.get('次回打合せ', '')}")
+        st.markdown("以上")
 
-            # ── 内容プレビュー ──
-            with st.expander("抽出された内容を確認する", expanded=True):
-                st.markdown(f"**会議名**: {minutes_data.get('meeting_name', '')}")
-                st.markdown(f"**開催日時**: {minutes_data.get('date', '') or '不明'}")
-                st.markdown(f"**場所**: {minutes_data.get('location', '') or '不明'}")
 
-                participants = minutes_data.get("participants", [])
-                if participants:
-                    st.markdown("**出席者**")
-                    for p in participants:
-                        st.markdown(f"- {p.get('organization', '')}：{p.get('names', '')}")
+def render_app() -> None:
+    st.title("📋 議事録自動作成ツール")
+    st.caption("Synclogの文字起こしを貼ってボタンを押すと、会社様式の議事録Wordができます。")
 
-                if minutes_data.get("materials"):
-                    st.markdown("**資料**")
-                    for m in minutes_data["materials"]:
-                        st.markdown(f"- {m}")
+    col_a, col_b = st.columns([4, 1])
+    with col_b:
+        if st.button("退出", key="logout_btn"):
+            st.session_state.auth_ok = False
+            st.session_state.auth_ts = None
+            st.rerun()
 
-                if minutes_data.get("agenda_items"):
-                    st.markdown("**議題・議論内容**")
-                    for item in minutes_data["agenda_items"]:
-                        st.markdown(f"- **{item['title']}**: {item['discussion']}")
+    st.divider()
 
-                if minutes_data.get("decisions"):
-                    st.markdown("**決定事項**")
-                    for d in minutes_data["decisions"]:
-                        st.markdown(f"- {d}")
+    api_key = _get_secret("ANTHROPIC_API_KEY")
+    if not api_key:
+        st.warning("⚠️ 管理者設定（APIキー）が未完了のため、現在使用できません。")
 
-                if minutes_data.get("next_date"):
-                    st.markdown(f"**次回開催**: {minutes_data['next_date']}")
+    # Streamlit secrets / .env を llm_client が見られるよう環境へ反映
+    if api_key and not os.getenv("ANTHROPIC_API_KEY"):
+        os.environ["ANTHROPIC_API_KEY"] = api_key
 
-            # ── ダウンロードボタン ──
-            date_str = datetime.now().strftime("%Y%m%d")
-            meeting_name = minutes_data.get("meeting_name", "会議") or "会議"
-            filename = f"{date_str}_{meeting_name}_議事録.docx"
+    st.subheader("入力情報")
 
-            st.download_button(
-                label="⬇️ 議事録ファイルをダウンロード",
-                data=docx_bytes,
-                file_name=filename,
-                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            )
+    transcript, tw = _input_block(
+        "① 発言ログ（文字起こし）",
+        "transcript",
+        required=True,
+        file_types=["txt", "docx"],
+        paste_placeholder="Synclogからコピーした話者ラベル付き文字起こしを貼り付けてください",
+        help_text="直接貼り付けがおすすめです。ファイル（.txt / .docx）も使えます。",
+    )
+    materials, mw = _input_block(
+        "② 当日資料",
+        "materials",
+        required=False,
+        file_types=["pdf", "docx", "txt"],
+        paste_placeholder="資料のテキストがあれば貼り付け（なければ空のままでOK）",
+        help_text="任意。PDFで文字が取れない場合は資料なしで進めます。",
+    )
+    agenda, aw = _input_block(
+        "③ 打合せ次第",
+        "agenda",
+        required=False,
+        file_types=["txt", "docx", "pdf"],
+        paste_placeholder="その日の議題一覧があれば貼り付け（なければ空のままでOK）",
+    )
 
-        except ValueError as e:
-            st.error(f"設定エラー: {e}")
-        except Exception as e:
-            st.error(f"エラーが発生しました: {e}")
-            st.info("文字起こしファイルの内容、またはAPIキーを確認してください。")
+    all_warnings = tw + mw + aw
+    for w in all_warnings:
+        st.warning(w)
 
-# ===== フッター =====
-st.divider()
-st.caption("※ アップロードされたファイルはサーバーに保存されません。処理は都度完結します。")
+    st.caption("※ 開催日時・場所・出席者・資料名はWord側で担当者が記入します（AIは書きません）。")
+    st.divider()
+
+    can_submit = bool(transcript) and bool(api_key)
+    clicked = st.button(
+        "📝 議事録を作成する",
+        disabled=not can_submit,
+        key="generate_btn",
+        type="primary",
+    )
+
+    if clicked and can_submit:
+        with st.spinner("AIが議事録を再構成中... しばらくお待ちください（30秒〜1分程度）"):
+            try:
+                transcript_text = normalize_transcript(transcript)
+                # 資料・次第は空でも可。警告付きで空になったものは空文字として送る
+                minutes_data = extract_minutes(
+                    transcript_text,
+                    materials=materials,
+                    agenda=agenda,
+                )
+                minutes_data = apply_number_check(minutes_data, transcript_text)
+                docx_bytes = build_minutes_docx(minutes_data)
+
+                st.session_state["last_minutes"] = minutes_data
+                st.session_state["last_docx"] = docx_bytes
+                st.session_state["last_filename"] = (
+                    f"{datetime.now().strftime('%Y%m%d')}_議事録.docx"
+                )
+                st.success("✅ 議事録の生成が完了しました。内容を確認してからダウンロードしてください。")
+            except ValueError as e:
+                st.error(f"入力エラー: {e}")
+            except Exception as e:
+                st.error(f"エラーが発生しました: {e}")
+                st.info("発言ログの内容、または管理者設定を確認してください。")
+
+    if st.session_state.get("last_minutes") and st.session_state.get("last_docx"):
+        render_preview(st.session_state["last_minutes"])
+        st.download_button(
+            label="⬇️ 議事録ファイルをダウンロード",
+            data=st.session_state["last_docx"],
+            file_name=st.session_state.get("last_filename", "議事録.docx"),
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
+
+    st.divider()
+    st.caption("※ 入力データはサーバーに保存されません。処理は都度完結します。")
+
+
+# ===== エントリ =====
+if "auth_ok" not in st.session_state:
+    st.session_state.auth_ok = False
+if "auth_ts" not in st.session_state:
+    st.session_state.auth_ts = None
+
+if _is_authenticated():
+    render_app()
+else:
+    render_login()

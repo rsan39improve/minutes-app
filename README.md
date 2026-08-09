@@ -1,6 +1,9 @@
 # 議事録自動生成アプリ
 
-文字起こしテキスト + 会議資料PDFをアップするだけで、固定様式のWordファイルを出力するWebアプリ。
+Synclogの話者ラベル付き文字起こし（＋任意で当日資料・打合せ次第）から、
+会社ひな型に沿ったWord議事録を生成するWebアプリ。
+
+AIは**議事本文のみ**を再構成します。開催日時・場所・出席者・資料名は空欄のまま出力し、担当者がWordで記入します。
 
 ## セットアップ
 
@@ -8,9 +11,11 @@
 # 1. 依存ライブラリをインストール
 pip3 install -r requirements.txt
 
-# 2. APIキーを設定
+# 2. 環境変数を設定
 cp .env.example .env
-# .envを開いて ANTHROPIC_API_KEY に自分のAPIキーを入力
+# .env を開き次を設定:
+#   ANTHROPIC_API_KEY=...
+#   APP_ACCESS_PASSWORD=...
 
 # 3. アプリ起動
 streamlit run app.py
@@ -20,41 +25,32 @@ streamlit run app.py
 
 ## 使い方
 
-1. **文字起こしテキスト**（.txt）をアップロード
-2. **会議資料PDF**（任意）をアップロード
-3. 「議事録Wordを生成する」をクリック
-4. 内容を確認してWordをダウンロード
-
-## POC動作確認
-
-```bash
-# POC① LLM→JSON変換の確認
-python3 llm_client.py
-
-# POC② PDF抽出の確認
-python3 extractor.py 会議資料.pdf
-
-# POC③ Word生成の確認
-python3 word_builder.py
-# → sample_minutes.docx が生成される
-```
+1. パスワードで入室
+2. **発言ログ**を貼り付け（または .txt / .docx をアップロード）
+3. 必要なら当日資料・打合せ次第を追加（任意）
+4. 「議事録を作成する」→ 画面で `[要確認]` を確認
+5. Wordをダウンロードし、ヘッダー（日時・出席者等）を記入して完成
 
 ## ファイル構成
 
 ```
 minutes-app/
-├── app.py           # Streamlit メイン
-├── extractor.py     # PDF・テキスト抽出
-├── llm_client.py    # LLM呼び出し（JSON Schema強制）
-├── word_builder.py  # Word生成
+├── app.py              # Streamlit UI・認証
+├── llm_client.py       # Claude API（構造化JSON）
+├── word_builder.py     # ひな型.docx編集
+├── extractor.py        # テキスト抽出
+├── number_check.py     # 数値の機械照合
+├── prompts/minutes.txt # システムプロンプト
+├── 議事録ひな型.docx
 ├── requirements.txt
-├── .env.example
-└── README.md
+└── .env.example
 ```
 
 ## デプロイ（Streamlit Cloud）
 
-1. このフォルダをGitHubリポジトリにpush
+1. このフォルダをGitHubリポジトリにpush（`議事録ひな型.docx` を含める）
 2. [share.streamlit.io](https://share.streamlit.io) でリポジトリを接続
-3. Secrets に `ANTHROPIC_API_KEY` を設定
-4. チームにURLを共有するだけ
+3. Secrets に設定:
+   - `ANTHROPIC_API_KEY`
+   - `APP_ACCESS_PASSWORD`
+4. 再デプロイ後、パスワードなしでは入力画面に到達できないことを確認
