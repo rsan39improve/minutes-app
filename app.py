@@ -48,7 +48,10 @@ st.markdown(
         --warn: #b45309;
     }
 
-    html, body, .stApp {
+    html, body, .stApp,
+    [data-testid="stAppViewContainer"],
+    [data-testid="stAppViewBlockContainer"],
+    .main {
         background-color: var(--bg) !important;
         color: var(--text);
     }
@@ -57,7 +60,28 @@ st.markdown(
             "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Noto Sans JP", sans-serif !important;
     }
 
-    .block-container {max-width: 760px; padding-top: 2.2rem;}
+    /* 上部の白い帯を消し、ページと一体に見せる */
+    header[data-testid="stHeader"],
+    .stApp > header {
+        background: transparent !important;
+        background-color: transparent !important;
+        box-shadow: none !important;
+        border: none !important;
+    }
+    [data-testid="stToolbar"],
+    [data-testid="stDecoration"],
+    #MainMenu,
+    footer,
+    .stDeployButton {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    /* ヘッダー領域の白背景が残らないようにする */
+    header[data-testid="stHeader"] * {
+        background: transparent !important;
+    }
+
+    .block-container {max-width: 760px; padding-top: 1.6rem;}
 
     h1 {
         font-size: 2rem !important;
@@ -107,6 +131,31 @@ st.markdown(
         background: var(--border-strong);
         color: #ffffff;
         box-shadow: none;
+    }
+
+    /* 退出: オレンジボタンではなく細い文字リンク */
+    .stButton > button[kind="secondary"],
+    button[data-testid="baseButton-secondary"] {
+        width: auto !important;
+        margin-left: auto !important;
+        background: transparent !important;
+        color: var(--text-muted) !important;
+        font-size: 0.84rem !important;
+        font-weight: 500 !important;
+        padding: 0.35rem 0.2rem !important;
+        border-radius: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        letter-spacing: 0.04em;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+        display: inline-block !important;
+    }
+    .stButton > button[kind="secondary"]:hover,
+    button[data-testid="baseButton-secondary"]:hover {
+        filter: none !important;
+        color: var(--text) !important;
+        background: transparent !important;
     }
 
     .stDownloadButton > button {
@@ -295,12 +344,13 @@ def render_preview(minutes_data: dict) -> None:
 
 
 def render_app() -> None:
-    st.title("📋 議事録自動作成ツール")
-    st.caption("Synclogの文字起こしを貼ってボタンを押すと、会社様式の議事録Wordができます。")
-
-    col_a, col_b = st.columns([4, 1])
-    with col_b:
-        if st.button("退出", key="logout_btn"):
+    head_l, head_r = st.columns([6, 1], vertical_alignment="top")
+    with head_l:
+        st.title("📋 議事録自動作成ツール")
+        st.caption("Synclogの文字起こしを貼ってボタンを押すと、会社様式の議事録Wordができます。")
+    with head_r:
+        st.markdown("<div style='height: 0.85rem'></div>", unsafe_allow_html=True)
+        if st.button("退出", key="logout_btn", type="secondary"):
             st.session_state.auth_ok = False
             st.session_state.auth_ts = None
             st.rerun()
