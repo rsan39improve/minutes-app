@@ -2,13 +2,15 @@
 ひな型.docx を編集して議事録Wordを生成する。
 AIには触らせず、このモジュールだけが様式を制御する。
 
-実ひな型の構造:
+ひな型構造（2026-08更新）:
 - table[0]: 記録 | 会議名
 - table[1]:
-  row0 開催日時 / row1 場所 / row2-4 出席者 / row5 資料 /
-  row6 議事次第 / row7 議事内容ヘッダー / row8 議事内容本文
-本文は table[1]/row8 の結合セルのみに書き込む。
-ヘッダー部（日時・場所・出席者・資料・次第）は空欄のまま出力する。
+  row0 開催日時 / row1 場所 / row2-3 出席者(委託者・受注者) /
+  row4 資料 / row5 発言者|議事内容ヘッダー /
+  row6 cell0 発言者列（市・UD等） / cell1 議事内容本文
+本文は table[1]/row6/cell1 のみに書き込む。
+発言者列（cell0）は触らない。
+ヘッダー部（日時・場所・出席者名・資料・会議名）は空欄のまま出力する。
 """
 
 from __future__ import annotations
@@ -26,20 +28,24 @@ W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 
 TEMPLATE_PATH = Path(__file__).parent / "議事録ひな型.docx"
 
-# ひな型本文セル内の複製元段落インデックス（実装前に確定）
-# p02: 議題下の見出し行（●●●●） → 議題見出し・小項目見出し・説明・質問
-# p01: 空行
-# p03: 箇条書き行（・） → 回答行（全角ハイフン）
-# p15: 日時行 → 次回打合せ
-# p17: 以上
+# 本文セル（row6/cell1）内の複製元段落インデックス
+# p0: 議題見出し「１．…」
+# p1: 小項目見出し「（１）…」
+# p2: 説明文
+# p3: 空行（前後の段落から取得）
+# p6: 質問行
+# p7: 回答行「－…」
+# p45: 次回打合せ：
+# p48: 以上
 PROTO = {
-    "topic": 2,
-    "blank": 1,
-    "subtopic": 2,
+    "topic": 0,
+    "subtopic": 1,
     "body": 2,
-    "answer": 3,
-    "next": 15,
-    "end": 17,
+    "blank": 3,
+    "question": 6,
+    "answer": 7,
+    "next": 45,
+    "end": 48,
 }
 
 _CONFIRM_RE = re.compile(r"(\[要確認[^\]]*\])")
@@ -53,7 +59,9 @@ def _local(tag: str) -> str:
     return tag.split("}")[-1] if "}" in tag else tag
 
 
-def _clear_cell_keep_one_empty(cell: etree._Element, prototype_p: etree._Element | None = None) -> None:
+def _clear_cell_keep_one_empty(
+    cell: etree._Element, prototype_p: etree._Element | None = None
+) -> None:
     """セル内段落をすべて消し、空の段落を1つ残す。"""
     for child in list(cell):
         if _local(child.tag) == "p":
@@ -66,12 +74,10 @@ def _clear_cell_keep_one_empty(cell: etree._Element, prototype_p: etree._Element
         cell.append(etree.Element(_qname("p")))
 
 
-def _set_paragraph_text(p: etree._Element, text: str, highlight_confirm: bool = False) -> None:
-    """
-    段落のテキストを差し替える。
-    既存の最初の run の rPr を流用し、校正マーク等は持ち込まない。
-    """
-    # 既存 rPr を確保
+def _set_paragraph_text(
+    p: etree._Element, text: str, highlight_confirm: bool = False
+) -> None:
+    """段落テキストを差し替える。既存 run の rPr を流用する。"""
     first_r = p.find("w:r", NSMAP)
     base_rpr = None
     if first_r is not None:
@@ -79,10 +85,17 @@ def _set_paragraph_text(p: etree._Element, text: str, highlight_confirm: bool = 
         if rpr is not None:
             base_rpr = deepcopy(rpr)
 
-    # p 直下の run / proofErr / bookmark 等のうち、テキスト関連を掃除
     for child in list(p):
         local = _local(child.tag)
-        if local in ("r", "proofErr", "bookmarkStart", "bookmarkEnd", "del", "ins", "hyperlink"):
+        if local in (
+            "r",
+            "proofErr",
+            "bookmarkStart",
+            "bookmarkEnd",
+            "del",
+            "ins",
+            "hyperlink",
+        ):
             p.remove(child)
 
     def add_run(run_text: str, color: str | None = None) -> None:
@@ -93,7 +106,6 @@ def _set_paragraph_text(p: etree._Element, text: str, highlight_confirm: bool = 
         else:
             rpr = etree.SubElement(r, _qname("rPr"))
         if color:
-            # 既存 color を除去して付与
             for old in rpr.findall("w:color", NSMAP):
                 rpr.remove(old)
             color_el = etree.SubElement(rpr, _qname("color"))
@@ -110,16 +122,17 @@ def _set_paragraph_text(p: etree._Element, text: str, highlight_confirm: bool = 
     pos = 0
     for m in _CONFIRM_RE.finditer(text):
         if m.start() > pos:
-            add_run(text[pos:m.start()])
+            add_run(text[pos : m.start()])
         add_run(m.group(1), color="FF0000")
         pos = m.end()
     if pos < len(text):
         add_run(text[pos:])
 
 
-def _make_para(prototype: etree._Element, text: str, highlight_confirm: bool = True) -> etree._Element:
+def _make_para(
+    prototype: etree._Element, text: str, highlight_confirm: bool = True
+) -> etree._Element:
     p = deepcopy(prototype)
-    # 校正・変更履歴を除去
     for bad in p.findall(".//w:proofErr", NSMAP):
         parent = bad.getparent()
         if parent is not None:
@@ -138,53 +151,51 @@ def _clear_header_placeholders(root: etree._Element) -> None:
     if len(tables) < 2:
         raise RuntimeError("ひな型に必要なテーブルがありません。")
 
-    # table[0] 会議名を空に
-    t0 = tables[0]
-    t0_rows = t0.findall("w:tr", NSMAP)
+    # table[0] 会議名を空に（「記録」は残す）
+    t0_rows = tables[0].findall("w:tr", NSMAP)
     if t0_rows:
         cells = t0_rows[0].findall("w:tc", NSMAP)
         if len(cells) >= 2:
-            proto = cells[1].find("w:p", NSMAP)
-            _clear_cell_keep_one_empty(cells[1], proto)
+            _clear_cell_keep_one_empty(cells[1], cells[1].find("w:p", NSMAP))
 
-    t1 = tables[1]
-    rows = t1.findall("w:tr", NSMAP)
+    rows = tables[1].findall("w:tr", NSMAP)
+    if len(rows) < 7:
+        raise RuntimeError(
+            f"ひな型の行数が不足しています（期待:7行以上, 実際:{len(rows)}行）。"
+        )
 
-    # row0 日時値, row1 場所値
+    # row0 日時 / row1 場所
     for ri in (0, 1):
         cells = rows[ri].findall("w:tc", NSMAP)
         if len(cells) >= 2:
             _clear_cell_keep_one_empty(cells[1], cells[1].find("w:p", NSMAP))
 
-    # row2-4 出席者（組織・氏名を空に。ラベル列は触らない）
-    for ri in (2, 3, 4):
+    # row2-3 出席者: 「委託者」「受注者」ラベルは残し、組織名・氏名を空に
+    for ri in (2, 3):
         cells = rows[ri].findall("w:tc", NSMAP)
-        for ci in range(1, len(cells)):
-            _clear_cell_keep_one_empty(cells[ci], cells[ci].find("w:p", NSMAP))
+        for ci in (2, 3):
+            if ci < len(cells):
+                _clear_cell_keep_one_empty(cells[ci], cells[ci].find("w:p", NSMAP))
 
-    # row5 資料
-    cells = rows[5].findall("w:tc", NSMAP)
-    if len(cells) >= 2:
-        _clear_cell_keep_one_empty(cells[1], cells[1].find("w:p", NSMAP))
-
-    # row6 議事次第（値セルを空に）
-    cells = rows[6].findall("w:tc", NSMAP)
+    # row4 資料
+    cells = rows[4].findall("w:tc", NSMAP)
     if len(cells) >= 2:
         _clear_cell_keep_one_empty(cells[1], cells[1].find("w:p", NSMAP))
 
 
-def _build_body_paragraphs(prototypes: dict[str, etree._Element], data: dict) -> list[etree._Element]:
+def _build_body_paragraphs(
+    prototypes: dict[str, etree._Element], data: dict
+) -> list[etree._Element]:
     paras: list[etree._Element] = []
 
-    topics = data.get("議題") or []
-    for topic in topics:
+    for topic in data.get("議題") or []:
         heading = f"{topic.get('番号', '')}{topic.get('見出し', '')}"
         paras.append(_make_para(prototypes["topic"], heading))
-        paras.append(_make_para(prototypes["blank"], ""))
 
         for sub in topic.get("小項目") or []:
             sub_heading = f"{sub.get('番号', '')}{sub.get('見出し', '')}"
             paras.append(_make_para(prototypes["subtopic"], sub_heading))
+
             explanation = (sub.get("説明") or "").strip()
             if explanation:
                 paras.append(_make_para(prototypes["body"], explanation))
@@ -193,8 +204,7 @@ def _build_body_paragraphs(prototypes: dict[str, etree._Element], data: dict) ->
                 q = (qa.get("質問") or "").strip()
                 a = (qa.get("回答") or "").strip()
                 if q:
-                    # 文末が。でなければ付与はしない（AI側ルールに委ねる）
-                    paras.append(_make_para(prototypes["body"], q))
+                    paras.append(_make_para(prototypes["question"], q))
                 if a:
                     if not a.startswith("－") and not a.startswith("-"):
                         a = "－" + a
@@ -203,16 +213,19 @@ def _build_body_paragraphs(prototypes: dict[str, etree._Element], data: dict) ->
             paras.append(_make_para(prototypes["blank"], ""))
 
     next_meeting = (data.get("次回打合せ") or "[要確認]").strip()
-    paras.append(_make_para(prototypes["next"], f"次回打合せ：{next_meeting}"))
-    paras.append(_make_para(prototypes["end"], "以上"))
+    # ひな型は「次回打合せ：」のみの行なので、内容を続けて書く
+    if next_meeting.startswith("次回打合せ"):
+        next_text = next_meeting
+    else:
+        next_text = f"次回打合せ：{next_meeting}"
+    paras.append(_make_para(prototypes["next"], next_text))
     paras.append(_make_para(prototypes["blank"], ""))
+    paras.append(_make_para(prototypes["end"], "以上"))
     return paras
 
 
 def build_minutes_docx(data: dict, template_path: Path | str | None = None) -> bytes:
-    """
-    ひな型を編集した議事録docxのバイト列を返す。
-    """
+    """ひな型を編集した議事録docxのバイト列を返す。"""
     path = Path(template_path) if template_path else TEMPLATE_PATH
     if not path.exists():
         raise FileNotFoundError(f"ひな型が見つかりません: {path}")
@@ -222,18 +235,23 @@ def build_minutes_docx(data: dict, template_path: Path | str | None = None) -> b
 
     root = etree.fromstring(original_files["word/document.xml"])
     tables = root.findall(".//w:tbl", NSMAP)
-    body_row = tables[1].findall("w:tr", NSMAP)[8]
-    body_cell = body_row.findall("w:tc", NSMAP)[0]
+    body_row = tables[1].findall("w:tr", NSMAP)[6]
+    body_cells = body_row.findall("w:tc", NSMAP)
+    if len(body_cells) < 2:
+        raise RuntimeError("ひな型の議事内容行にセルが不足しています。")
 
+    # cell0=発言者列（触らない）, cell1=議事内容
+    body_cell = body_cells[1]
     existing_paras = body_cell.findall("w:p", NSMAP)
     if len(existing_paras) <= max(PROTO.values()):
-        raise RuntimeError("ひな型本文の段落数が不足しています。")
+        raise RuntimeError(
+            f"ひな型本文の段落数が不足しています（{len(existing_paras)}段落）。"
+        )
 
     prototypes = {key: existing_paras[idx] for key, idx in PROTO.items()}
 
     _clear_header_placeholders(root)
 
-    # 本文段落を置換（tcPr は残す）
     for p in body_cell.findall("w:p", NSMAP):
         body_cell.remove(p)
     for p in _build_body_paragraphs(prototypes, data):
@@ -245,7 +263,6 @@ def build_minutes_docx(data: dict, template_path: Path | str | None = None) -> b
         encoding="UTF-8",
         standalone=True,
     )
-    # pretty print しない（Wordが壊れることがある）
 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as out:
@@ -279,7 +296,7 @@ if __name__ == "__main__":
                 ],
             }
         ],
-        "次回打合せ": "令和８年９月１１日（水）１４時００分～",
+        "次回打合せ": "[要確認]",
     }
     out = build_minutes_docx(sample)
     out_path = Path(__file__).parent / "sample_minutes.docx"
