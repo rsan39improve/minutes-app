@@ -322,13 +322,13 @@ def render_preview(minutes_data: dict) -> None:
             f"<br>Wordファイルダウンロード後に確認してください。</div>",
             unsafe_allow_html=True,
         )
-        with st.expander("要確認一覧", expanded=True):
+        with st.expander("要確認一覧", expanded=False):
             for c in confirms:
                 st.markdown(f"- `{c}`")
     else:
         st.success("要確認タグは検出されませんでした。念のため本文も確認してください。")
 
-    with st.expander("生成内容プレビュー", expanded=True):
+    with st.expander("議事録内容プレビュー", expanded=False):
         for topic in minutes_data.get("議題") or []:
             st.markdown(f"### {topic.get('番号', '')}{topic.get('見出し', '')}")
             for sub in topic.get("小項目") or []:
@@ -425,7 +425,7 @@ def render_app() -> None:
                 st.session_state["last_filename"] = (
                     f"{datetime.now().strftime('%Y%m%d')}_議事録.docx"
                 )
-                st.success("✅ 議事録の生成が完了しました。内容を確認してからダウンロードしてください。")
+                st.success("✅ 議事録の作成が完了しました。内容を確認してからダウンロードしてください。")
             except ValueError as e:
                 st.error(f"入力エラー: {e}")
             except Exception as e:
