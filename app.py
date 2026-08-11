@@ -1,6 +1,6 @@
 """
 議事録自動生成ツール - Streamlit メイン画面
-Synclogの発言ログ（貼り付け or ファイル）と当日資料・打合せ次第から
+Synclogの発言ログ（貼り付け or ファイル）と打合せ次第・その他資料から
 会社ひな型の Word を生成する。
 """
 
@@ -375,20 +375,21 @@ def render_app() -> None:
         paste_placeholder="Synclogからコピーした話者ラベル付き文字起こしを貼り付けてください",
         help_text="直接貼り付けがおすすめです。ファイル（.txt / .docx）も使えます。",
     )
-    materials, mw = _input_block(
-        "② 当日資料",
-        "materials",
-        required=False,
-        file_types=["pdf", "docx", "txt"],
-        paste_placeholder="資料のテキストがあれば貼り付け（なければ空のままでOK）",
-        help_text="任意。PDFで文字が取れない場合は資料なしで進めます。",
-    )
     agenda, aw = _input_block(
-        "③ 打合せ次第",
+        "② 打合せ次第",
         "agenda",
         required=False,
         file_types=["txt", "docx", "pdf"],
         paste_placeholder="その日の議題一覧があれば貼り付け（なければ空のままでOK）",
+        help_text="任意。あると議題見出しが安定しやすくなります。",
+    )
+    materials, mw = _input_block(
+        "③ その他資料",
+        "materials",
+        required=False,
+        file_types=["pdf", "docx", "txt"],
+        paste_placeholder="その他資料のテキストがあれば貼り付け（なければ空のままでOK）",
+        help_text="任意。PDFで文字が取れない場合は資料なしで進めます。",
     )
 
     all_warnings = tw + mw + aw

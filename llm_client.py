@@ -161,8 +161,8 @@ def extract_minutes(
 
     user_content = (
         f"【発言ログ】\n{transcript.strip()}\n\n"
-        f"【当日資料】\n{(materials or '').strip() or '（なし）'}\n\n"
         f"【打合せ次第】\n{(agenda or '').strip() or '（なし）'}\n\n"
+        f"【その他資料】\n{(materials or '').strip() or '（なし）'}\n\n"
         "上記から議事録JSONを生成してください。"
     )
 
