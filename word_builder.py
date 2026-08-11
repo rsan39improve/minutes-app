@@ -251,6 +251,38 @@ def _enable_body_table_page_flow(table: etree._Element) -> None:
         tr_pr.remove(el)
 
 
+def _ensure_gap_between_title_and_body(root: etree._Element) -> None:
+    """
+    「記録」タイトル表と本文表のあいだに1行分の空きを入れる。
+
+    ひな型では本文表の浮き位置(tblpY)で隙間が出ていたが、
+    ページ送りのために浮き設定を外すと隙間も消えるため、空段落で補う。
+    """
+    body = root.find("w:body", NSMAP)
+    if body is None:
+        return
+    direct_tables = [c for c in list(body) if _local(c.tag) == "tbl"]
+    if len(direct_tables) < 2:
+        return
+    title_tbl, body_tbl = direct_tables[0], direct_tables[1]
+
+    # すでに間に段落があれば何もしない
+    sibling = title_tbl.getnext()
+    while sibling is not None and sibling is not body_tbl:
+        if _local(sibling.tag) == "p":
+            return
+        sibling = sibling.getnext()
+
+    gap = etree.Element(_qname("p"))
+    p_pr = etree.SubElement(gap, _qname("pPr"))
+    spacing = etree.SubElement(p_pr, _qname("spacing"))
+    spacing.set(_qname("before"), "0")
+    spacing.set(_qname("after"), "0")
+    spacing.set(_qname("line"), "240")  # 1行
+    spacing.set(_qname("lineRule"), "auto")
+    body_tbl.addprevious(gap)
+
+
 def build_minutes_docx(data: dict, template_path: Path | str | None = None) -> bytes:
     """ひな型を編集した議事録docxのバイト列を返す。"""
     path = Path(template_path) if template_path else TEMPLATE_PATH
@@ -263,6 +295,7 @@ def build_minutes_docx(data: dict, template_path: Path | str | None = None) -> b
     root = etree.fromstring(original_files["word/document.xml"])
     tables = root.findall(".//w:tbl", NSMAP)
     _enable_body_table_page_flow(tables[1])
+    _ensure_gap_between_title_and_body(root)
 
     body_row = tables[1].findall("w:tr", NSMAP)[6]
     body_cells = body_row.findall("w:tc", NSMAP)
