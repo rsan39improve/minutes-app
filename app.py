@@ -318,8 +318,8 @@ def render_preview(minutes_data: dict) -> None:
     confirms = collect_confirmation_tags(minutes_data)
     if confirms:
         st.markdown(
-            f'<div class="confirm-box"><strong>要確認が {len(confirms)} 件あります</strong>'
-            f"<br>Word内でも赤字表示されます。ダウンロード前に内容を確認してください。</div>",
+            f'<div class="confirm-box"><strong>要確認が {len(confirms)} 箇所あります。</strong>'
+            f"<br>Wordファイルダウンロード後に確認してください。</div>",
             unsafe_allow_html=True,
         )
         with st.expander("要確認一覧", expanded=True):
