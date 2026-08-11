@@ -224,6 +224,33 @@ def _build_body_paragraphs(
     return paras
 
 
+def _enable_body_table_page_flow(table: etree._Element) -> None:
+    """
+    本文テーブルがページをまたげるようにする。
+
+    ひな型の table[1] には tblpPr（浮き表）が付いており、
+    Wordでは浮き表の行がページをまたげず、長い議事内容の後半が
+    見えない／切れることがある。インライン表に戻して解消する。
+    """
+    tbl_pr = table.find("w:tblPr", NSMAP)
+    if tbl_pr is not None:
+        for el in tbl_pr.findall("w:tblpPr", NSMAP):
+            tbl_pr.remove(el)
+
+    # 本文行（最終行）の固定高さ・分割禁止があれば外す
+    rows = table.findall("w:tr", NSMAP)
+    if not rows:
+        return
+    body_row = rows[-1]
+    tr_pr = body_row.find("w:trPr", NSMAP)
+    if tr_pr is None:
+        return
+    for el in tr_pr.findall("w:trHeight", NSMAP):
+        tr_pr.remove(el)
+    for el in tr_pr.findall("w:cantSplit", NSMAP):
+        tr_pr.remove(el)
+
+
 def build_minutes_docx(data: dict, template_path: Path | str | None = None) -> bytes:
     """ひな型を編集した議事録docxのバイト列を返す。"""
     path = Path(template_path) if template_path else TEMPLATE_PATH
@@ -235,6 +262,8 @@ def build_minutes_docx(data: dict, template_path: Path | str | None = None) -> b
 
     root = etree.fromstring(original_files["word/document.xml"])
     tables = root.findall(".//w:tbl", NSMAP)
+    _enable_body_table_page_flow(tables[1])
+
     body_row = tables[1].findall("w:tr", NSMAP)[6]
     body_cells = body_row.findall("w:tc", NSMAP)
     if len(body_cells) < 2:
