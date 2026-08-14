@@ -28,24 +28,28 @@ st.set_page_config(
     layout="centered",
 )
 
-# ===== スタイル =====
+# ===== スタイル（デザイン案B: 設計図っぽい） =====
 st.markdown(
     """
     <style>
+    @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=IBM+Plex+Sans+JP:wght@400;500;600;700&display=swap');
+
     :root {
-        --bg: #f5f2ee;
+        --bg: #f7f8fa;
+        --grid: #e8edf2;
         --surface: #ffffff;
-        --surface-2: #efece5;
-        --border: #e2ddd3;
-        --border-strong: #cdc5b7;
-        --text: #1c1815;
-        --text-muted: #6f6a60;
-        --text-faint: #948d80;
-        --accent: #d63d13;
-        --accent-hover: #e94a1f;
-        --success: #1c8a5c;
-        --success-hover: #23a56f;
-        --warn: #b45309;
+        --surface-2: #f3f4f6;
+        --border: #111827;
+        --border-soft: #d1d5db;
+        --text: #111827;
+        --text-muted: #4b5563;
+        --text-faint: #6b7280;
+        --accent: #111827;
+        --accent-hover: #1f2937;
+        --success: #065f46;
+        --success-hover: #047857;
+        --warn: #9a3412;
+        --shadow: 4px 4px 0 #111827;
     }
 
     html, body, .stApp,
@@ -53,14 +57,16 @@ st.markdown(
     [data-testid="stAppViewBlockContainer"],
     .main {
         background-color: var(--bg) !important;
+        background-image:
+            linear-gradient(var(--grid) 1px, transparent 1px),
+            linear-gradient(90deg, var(--grid) 1px, transparent 1px) !important;
+        background-size: 28px 28px !important;
         color: var(--text);
     }
     html, body, [class*="css"] {
-        font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans",
-            "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Noto Sans JP", sans-serif !important;
+        font-family: "IBM Plex Sans JP", "Hiragino Sans", "Noto Sans JP", sans-serif !important;
     }
 
-    /* 上部の白い帯を消し、ページと一体に見せる */
     header[data-testid="stHeader"],
     .stApp > header {
         background: transparent !important;
@@ -76,55 +82,87 @@ st.markdown(
         display: none !important;
         visibility: hidden !important;
     }
-    /* ヘッダー領域の白背景が残らないようにする */
     header[data-testid="stHeader"] * {
         background: transparent !important;
     }
 
-    /* 見出し横のリンク（鎖）アイコンをすべて非表示 */
     [data-testid="stHeaderActionElements"],
     [data-testid="stHeadingWithActionElements"] a,
     .stHeadingWithActionElements a,
-    h1 a,
-    h2 a,
-    h3 a {
+    h1 a, h2 a, h3 a {
         display: none !important;
         visibility: hidden !important;
         pointer-events: none !important;
     }
 
-    .block-container {max-width: 760px; padding-top: 1.6rem;}
+    .block-container {max-width: 760px; padding-top: 1.4rem;}
+
+    .topbar {
+        border-bottom: 2px solid var(--border);
+        padding-bottom: 0.9rem;
+        margin-bottom: 0.2rem;
+    }
+    .brand-row {
+        display: flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 0.65rem;
+    }
+    .brand-title {
+        font-family: "Bricolage Grotesque", "IBM Plex Sans JP", sans-serif !important;
+        font-size: clamp(1.85rem, 4vw, 2.45rem) !important;
+        font-weight: 800 !important;
+        letter-spacing: -0.03em !important;
+        line-height: 1.15 !important;
+        color: var(--text) !important;
+        margin: 0 !important;
+    }
+    .badge-internal {
+        display: inline-block;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        border: 1.5px solid var(--border);
+        padding: 0.18rem 0.42rem;
+        color: var(--text);
+        background: #fff;
+    }
 
     h1 {
-        font-size: 2rem !important;
+        font-family: "Bricolage Grotesque", "IBM Plex Sans JP", sans-serif !important;
+        font-size: clamp(1.85rem, 4vw, 2.45rem) !important;
         font-weight: 800 !important;
-        letter-spacing: -0.01em;
+        letter-spacing: -0.03em !important;
         color: var(--text) !important;
     }
-    [data-testid="stCaptionContainer"] { color: var(--text-faint) !important; }
+    [data-testid="stCaptionContainer"] { color: var(--text-muted) !important; }
 
     h3 {
-        font-size: 0.8rem !important;
+        font-size: 0.78rem !important;
         font-weight: 700 !important;
         letter-spacing: 0.08em;
         text-transform: uppercase;
-        color: var(--text-muted) !important;
+        color: var(--text) !important;
+        border-left: 3px solid var(--border);
+        padding-left: 0.55rem !important;
     }
 
     div[data-testid="stVerticalBlockBorderWrapper"] {
         background: var(--surface);
-        border: 1px solid var(--border) !important;
-        border-radius: 12px !important;
-        margin-bottom: 12px;
+        border: 1.5px solid var(--border) !important;
+        border-radius: 4px !important;
+        margin-bottom: 14px;
+        box-shadow: var(--shadow);
     }
     [data-testid="stExpander"] {
-        border: 1px solid var(--border) !important;
-        border-radius: 12px !important;
+        border: 1.5px solid var(--border) !important;
+        border-radius: 4px !important;
         background: var(--surface) !important;
+        box-shadow: var(--shadow);
     }
-    [data-testid="stAlert"] { border-radius: 10px !important; }
+    [data-testid="stAlert"] { border-radius: 4px !important; border: 1.5px solid var(--border) !important; }
 
-    /* メインボタンは上の区切り線と同じ全幅に揃える */
     div[data-testid="stButton"],
     .stButton,
     .stButton > div {
@@ -135,29 +173,34 @@ st.markdown(
     button[kind="primary"] {
         width: 100% !important;
         max-width: 100% !important;
-        background: linear-gradient(180deg, var(--accent-hover) 0%, var(--accent) 100%);
-        color: #ffffff;
+        background: var(--accent) !important;
+        color: #ffffff !important;
         font-size: 1.05rem;
         font-weight: 700;
-        padding: 0.8rem 1rem;
-        border-radius: 10px;
-        border: none;
+        padding: 0.85rem 1rem;
+        border-radius: 4px !important;
+        border: 1.5px solid var(--border) !important;
         letter-spacing: 0.02em;
         display: block !important;
-        box-shadow: 0 8px 24px -8px rgba(214, 61, 19, 0.45);
+        box-shadow: 4px 4px 0 #64748b !important;
     }
     .stButton > button:hover,
     button[data-testid="baseButton-primary"]:hover,
-    button[kind="primary"]:hover {filter: brightness(1.06);}
+    button[kind="primary"]:hover {
+        filter: none !important;
+        background: var(--accent-hover) !important;
+        transform: translate(1px, 1px);
+        box-shadow: 3px 3px 0 #64748b !important;
+    }
     .stButton > button:disabled,
     button[data-testid="baseButton-primary"]:disabled,
     button[kind="primary"]:disabled {
-        background: var(--border-strong);
-        color: #ffffff;
-        box-shadow: none;
+        background: #9ca3af !important;
+        color: #ffffff !important;
+        box-shadow: none !important;
+        border-color: #6b7280 !important;
     }
 
-    /* 退出: オレンジボタンではなく細い文字リンク（全幅ルールの対象外） */
     div[data-testid="column"] div[data-testid="stButton"],
     div[data-testid="column"] .stButton,
     div[data-testid="column"] .stButton > div {
@@ -179,40 +222,48 @@ st.markdown(
         text-decoration: underline;
         text-underline-offset: 3px;
         display: inline-block !important;
+        transform: none !important;
     }
     .stButton > button[kind="secondary"]:hover,
     button[data-testid="baseButton-secondary"]:hover {
         filter: none !important;
         color: var(--text) !important;
         background: transparent !important;
+        box-shadow: none !important;
+        transform: none !important;
     }
 
     .stDownloadButton > button {
-        width: 100%;
-        background-color: var(--success);
-        color: #ffffff;
+        width: 100% !important;
+        background-color: var(--success) !important;
+        color: #ffffff !important;
         font-size: 1.0rem;
         font-weight: 700;
         padding: 0.75rem 1rem;
-        border-radius: 10px;
-        border: none;
+        border-radius: 4px !important;
+        border: 1.5px solid var(--border) !important;
+        box-shadow: 4px 4px 0 #64748b !important;
     }
-    .stDownloadButton > button:hover {background-color: var(--success-hover);}
+    .stDownloadButton > button:hover {
+        background-color: var(--success-hover) !important;
+        transform: translate(1px, 1px);
+        box-shadow: 3px 3px 0 #64748b !important;
+    }
 
-    hr {border-color: var(--border) !important;}
+    hr {border-color: var(--border) !important; border-width: 1.5px !important;}
     label {font-weight: 600 !important; color: var(--text) !important;}
 
     .stTextInput input, .stTextArea textarea {
         background-color: var(--surface-2) !important;
-        border: 1px solid var(--border) !important;
-        border-radius: 8px !important;
+        border: 1.5px solid var(--border) !important;
+        border-radius: 2px !important;
         color: var(--text) !important;
     }
 
     [data-testid="stFileUploaderDropzone"] {
         background-color: var(--surface-2) !important;
-        border: 1px dashed var(--border-strong) !important;
-        border-radius: 9px !important;
+        border: 1.5px dashed var(--border) !important;
+        border-radius: 2px !important;
     }
     [data-testid="stFileUploaderDropzone"] small,
     [data-testid="stFileUploaderDropzone"] span { display: none !important; }
@@ -227,6 +278,7 @@ st.markdown(
     [data-testid="stFileUploaderDropzone"] button {
         font-size: 0 !important;
         color: transparent !important;
+        border-radius: 2px !important;
     }
     [data-testid="stFileUploaderDropzone"] button::after {
         content: 'ファイルを選択';
@@ -236,12 +288,21 @@ st.markdown(
 
     .confirm-box {
         background: #fff7ed;
-        border: 1px solid #fdba74;
-        border-radius: 10px;
+        border: 1.5px solid var(--border);
+        border-radius: 4px;
+        box-shadow: var(--shadow);
         padding: 0.9rem 1rem;
         margin: 0.6rem 0 1rem 0;
     }
     .confirm-box strong { color: var(--warn); }
+
+    div[data-testid="stForm"] {
+        border: 1.5px solid var(--border) !important;
+        border-radius: 4px !important;
+        box-shadow: var(--shadow);
+        background: #fff;
+        padding: 1rem !important;
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -272,7 +333,17 @@ def _is_authenticated() -> bool:
 
 
 def render_login() -> None:
-    st.title("📋 議事録自動作成ツール")
+    st.markdown(
+        """
+        <div class="topbar">
+          <div class="brand-row">
+            <p class="brand-title">議事録自動作成ツール</p>
+            <span class="badge-internal">Internal</span>
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
     st.caption("社内限定ツールです。パスワードを入力してください。")
     st.divider()
 
@@ -283,7 +354,9 @@ def render_login() -> None:
 
     with st.form("login_form"):
         password = st.text_input("パスワード", type="password")
-        submitted = st.form_submit_button("入室する", type="primary")
+        submitted = st.form_submit_button(
+            "入室する", type="primary", use_container_width=True
+        )
         if submitted:
             if password == expected:
                 st.session_state.auth_ok = True
@@ -391,16 +464,24 @@ def render_preview(minutes_data: dict) -> None:
 def render_app() -> None:
     head_l, head_r = st.columns([6, 1], vertical_alignment="top")
     with head_l:
-        st.title("📋 議事録自動作成ツール")
+        st.markdown(
+            """
+            <div class="topbar">
+              <div class="brand-row">
+                <p class="brand-title">議事録自動作成ツール</p>
+                <span class="badge-internal">Internal</span>
+              </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
         st.caption("Synclogの文字起こしデータを貼り付け、ボタンを押すと議事録が作成できます。")
     with head_r:
-        st.markdown("<div style='height: 0.85rem'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height: 0.55rem'></div>", unsafe_allow_html=True)
         if st.button("退出", key="logout_btn", type="secondary"):
             st.session_state.auth_ok = False
             st.session_state.auth_ts = None
             st.rerun()
-
-    st.divider()
 
     api_key = _get_secret("ANTHROPIC_API_KEY")
     if not api_key:

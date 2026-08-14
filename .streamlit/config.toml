@@ -5,7 +5,7 @@ maxUploadSize = 50
 toolbarMode = "minimal"
 
 [theme]
-primaryColor = "#d63d13"
-backgroundColor = "#f5f2ee"
-secondaryBackgroundColor = "#efece5"
-textColor = "#1c1815"
+primaryColor = "#111827"
+backgroundColor = "#f7f8fa"
+secondaryBackgroundColor = "#f3f4f6"
+textColor = "#111827"
