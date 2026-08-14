@@ -421,7 +421,7 @@ def render_app() -> None:
     for w in all_warnings:
         st.warning(w)
 
-    st.caption("※ 開催日時・場所・出席者・資料名はWord側で担当者が記入します（AIは書きません）。")
+    st.caption("※ 開催日時・場所・出席者・資料名などは担当者が直接記入してください。")
     st.divider()
 
     can_submit = bool(transcript) and bool(api_key)
