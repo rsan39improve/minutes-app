@@ -282,35 +282,49 @@ def _input_block(
     *,
     required: bool,
     file_types: list[str],
-    paste_placeholder: str,
-    help_text: str = "",
+    paste_placeholder: str = "",
+    allow_paste: bool = True,
 ) -> tuple[str, list[str]]:
     """
-    貼り付け / ファイルの切替付き入力ブロック。
+    入力ブロック。
+    allow_paste=True のとき貼り付け/ファイル切替、False のときファイルのみ。
     Returns: (text, warnings)
     """
     warnings: list[str] = []
     req_label = "必須" if required else "任意"
     with st.container(border=True):
         st.markdown(f"**{title}** （{req_label}）")
-        if help_text:
-            st.caption(help_text)
-        method = st.radio(
-            "入力方法",
-            ["直接貼り付け", "ファイルをアップロード"],
-            horizontal=True,
-            key=f"{key_prefix}_method",
-            label_visibility="collapsed",
-        )
         text = ""
-        if method == "直接貼り付け":
-            text = st.text_area(
-                "テキスト",
-                height=180 if required else 120,
-                placeholder=paste_placeholder,
-                key=f"{key_prefix}_paste",
+        if allow_paste:
+            method = st.radio(
+                "入力方法",
+                ["直接貼り付け", "ファイルをアップロード"],
+                horizontal=True,
+                key=f"{key_prefix}_method",
                 label_visibility="collapsed",
             )
+            if method == "直接貼り付け":
+                text = st.text_area(
+                    "テキスト",
+                    height=180 if required else 120,
+                    placeholder=paste_placeholder,
+                    key=f"{key_prefix}_paste",
+                    label_visibility="collapsed",
+                )
+            else:
+                uploaded = st.file_uploader(
+                    "ファイル",
+                    type=file_types,
+                    key=f"{key_prefix}_file",
+                    label_visibility="collapsed",
+                )
+                if uploaded is not None:
+                    extracted, warn = extract_text_from_upload(
+                        uploaded.read(), uploaded.name
+                    )
+                    if warn:
+                        warnings.append(warn)
+                    text = extracted or ""
         else:
             uploaded = st.file_uploader(
                 "ファイル",
@@ -319,7 +333,9 @@ def _input_block(
                 label_visibility="collapsed",
             )
             if uploaded is not None:
-                extracted, warn = extract_text_from_upload(uploaded.read(), uploaded.name)
+                extracted, warn = extract_text_from_upload(
+                    uploaded.read(), uploaded.name
+                )
                 if warn:
                     warnings.append(warn)
                 text = extracted or ""
@@ -385,23 +401,20 @@ def render_app() -> None:
         required=True,
         file_types=["txt", "docx"],
         paste_placeholder="Synclogからコピーした話者ラベル付き文字起こしを貼り付けてください",
-        help_text="直接貼り付けがおすすめです。ファイル（.txt / .docx）も使えます。",
     )
     agenda, aw = _input_block(
         "② 打合せ次第",
         "agenda",
         required=False,
         file_types=["txt", "docx", "pdf"],
-        paste_placeholder="その日の議題一覧があれば貼り付け（なければ空のままでOK）",
-        help_text="任意。あると議題見出しが安定しやすくなります。",
+        paste_placeholder="会議の次第があれば貼り付けてください（なければ空のままでOK）",
     )
     materials, mw = _input_block(
         "③ その他資料",
         "materials",
         required=False,
         file_types=["pdf", "docx", "txt"],
-        paste_placeholder="その他資料のテキストがあれば貼り付け（なければ空のままでOK）",
-        help_text="任意。PDFで文字が取れない場合は資料なしで進めます。",
+        allow_paste=False,
     )
 
     all_warnings = tw + mw + aw
