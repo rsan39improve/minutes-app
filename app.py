@@ -447,6 +447,7 @@ def render_app() -> None:
         disabled=not can_submit,
         key="generate_btn",
         type="primary",
+        use_container_width=True,
     )
 
     if clicked and can_submit:
@@ -481,6 +482,7 @@ def render_app() -> None:
             data=st.session_state["last_docx"],
             file_name=st.session_state.get("last_filename", "議事録.docx"),
             mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            use_container_width=True,
         )
 
     st.divider()
