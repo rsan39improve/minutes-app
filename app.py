@@ -347,7 +347,7 @@ def render_app() -> None:
     head_l, head_r = st.columns([6, 1], vertical_alignment="top")
     with head_l:
         st.title("📋 議事録自動作成ツール")
-        st.caption("Synclogの文字起こしを貼ってボタンを押すと、会社様式の議事録Wordができます。")
+        st.caption("Synclogの文字起こしデータを貼り付け、ボタンを押すと議事録が作成できます。")
     with head_r:
         st.markdown("<div style='height: 0.85rem'></div>", unsafe_allow_html=True)
         if st.button("退出", key="logout_btn", type="secondary"):
