@@ -124,9 +124,17 @@ st.markdown(
     }
     [data-testid="stAlert"] { border-radius: 10px !important; }
 
-    .stButton {padding-left: 0 !important; padding-right: 0 !important;}
-    .stButton > button {
-        width: 100%;
+    /* メインボタンは上の区切り線と同じ全幅に揃える */
+    div[data-testid="stButton"],
+    .stButton,
+    .stButton > div {
+        width: 100% !important;
+    }
+    .stButton > button,
+    button[data-testid="baseButton-primary"],
+    button[kind="primary"] {
+        width: 100% !important;
+        max-width: 100% !important;
         background: linear-gradient(180deg, var(--accent-hover) 0%, var(--accent) 100%);
         color: #ffffff;
         font-size: 1.05rem;
@@ -135,17 +143,26 @@ st.markdown(
         border-radius: 10px;
         border: none;
         letter-spacing: 0.02em;
-        display: block;
+        display: block !important;
         box-shadow: 0 8px 24px -8px rgba(214, 61, 19, 0.45);
     }
-    .stButton > button:hover {filter: brightness(1.06);}
-    .stButton > button:disabled {
+    .stButton > button:hover,
+    button[data-testid="baseButton-primary"]:hover,
+    button[kind="primary"]:hover {filter: brightness(1.06);}
+    .stButton > button:disabled,
+    button[data-testid="baseButton-primary"]:disabled,
+    button[kind="primary"]:disabled {
         background: var(--border-strong);
         color: #ffffff;
         box-shadow: none;
     }
 
-    /* 退出: オレンジボタンではなく細い文字リンク */
+    /* 退出: オレンジボタンではなく細い文字リンク（全幅ルールの対象外） */
+    div[data-testid="column"] div[data-testid="stButton"],
+    div[data-testid="column"] .stButton,
+    div[data-testid="column"] .stButton > div {
+        width: auto !important;
+    }
     .stButton > button[kind="secondary"],
     button[data-testid="baseButton-secondary"] {
         width: auto !important;
