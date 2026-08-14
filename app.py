@@ -81,6 +81,18 @@ st.markdown(
         background: transparent !important;
     }
 
+    /* 見出し横のリンク（鎖）アイコンをすべて非表示 */
+    [data-testid="stHeaderActionElements"],
+    [data-testid="stHeadingWithActionElements"] a,
+    .stHeadingWithActionElements a,
+    h1 a,
+    h2 a,
+    h3 a {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+    }
+
     .block-container {max-width: 760px; padding-top: 1.6rem;}
 
     h1 {
