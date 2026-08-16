@@ -70,10 +70,13 @@ web/
 
 ## Vercelへの反映
 
+GitHubの`main`ブランチへPushすると、Vercelが`web/`を自動でビルドして本番へ反映します。
+
+公開前に手元で確認する場合:
+
 ```bash
 cd web
 npm run build
-vercel deploy --prod
 ```
 
 Vercelには次の環境変数が必要です。
