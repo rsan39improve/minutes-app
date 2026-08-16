@@ -1,6 +1,7 @@
 .env
-__pycache__/
-*.pyc
-*.pyo
-sample_minutes.docx
 .DS_Store
+
+# Next.js
+web/node_modules/
+web/.next/
+web/.env.local

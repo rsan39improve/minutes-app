@@ -1,56 +1,82 @@
-# 議事録自動生成アプリ
+# 議事録自動作成ツール
 
-Synclogの話者ラベル付き文字起こし（＋任意で当日資料・打合せ次第）から、
-会社ひな型に沿ったWord議事録を生成するWebアプリ。
+Synclogの話者ラベル付き文字起こしから、会社ひな型に沿ったWord議事録を生成するNext.jsアプリです。アプリ本体は `web/` にあります。
 
-AIは**議事本文のみ**を再構成します。開催日時・場所・出席者・資料名は空欄のまま出力し、担当者がWordで記入します。
+- 公開URL: https://minutes-app-next.vercel.app
+- AIは議事本文のみを再構成
+- 開催日時・場所・出席者・資料名は空欄で出力し、担当者がWordで記入
 
-## セットアップ
+## 技術構成
+
+| 技術 | 役割 |
+|---|---|
+| Next.js / React | 画面とサーバーAPI |
+| TypeScript | アプリの処理 |
+| CSS | 現在の画面デザイン |
+| Tailwind CSS | 導入済み（現状はほぼ未使用） |
+| Claude API | 議事本文の構造化 |
+| Mammoth / pdf-parse | Word・PDFからの文字抽出 |
+| JSZip / XML | 会社ひな型docxの編集 |
+| Vercel | 公開・環境変数の保管 |
+
+shadcn/uiは使用していません。
+
+## ローカル起動
 
 ```bash
-# 1. 依存ライブラリをインストール
-pip3 install -r requirements.txt
-
-# 2. 環境変数を設定
-cp .env.example .env
-# .env を開き次を設定:
-#   ANTHROPIC_API_KEY=...
-#   APP_ACCESS_PASSWORD=...
-
-# 3. アプリ起動
-streamlit run app.py
+cd web
+npm install
+cp .env.example .env.local
 ```
 
-ブラウザが自動で開きます（http://localhost:8501）。
+`web/.env.local` に次を設定します。
+
+```text
+ANTHROPIC_API_KEY=...
+APP_ACCESS_PASSWORD=...
+```
+
+起動します。
+
+```bash
+npm run dev
+```
+
+ブラウザで http://localhost:3000 を開きます。
 
 ## 使い方
 
 1. パスワードで入室
-2. **発言ログ**を貼り付け（または .txt / .docx をアップロード）
-3. 必要なら当日資料・打合せ次第を追加（任意）
-4. 「議事録を作成する」→ 画面で `[要確認]` を確認
-5. Wordをダウンロードし、ヘッダー（日時・出席者等）を記入して完成
+2. 発言ログを貼り付け（または `.txt` / `.docx` をアップロード）
+3. 必要なら打合せ次第・その他資料を追加
+4. 「議事録を作成する」を押す
+5. プレビューと `[要確認]` を確認
+6. Wordをダウンロードし、日時・出席者などを記入
 
 ## ファイル構成
 
-```
-minutes-app/
-├── app.py              # Streamlit UI・認証
-├── llm_client.py       # Claude API（構造化JSON）
-├── word_builder.py     # ひな型.docx編集
-├── extractor.py        # テキスト抽出
-├── number_check.py     # 数値の機械照合
-├── prompts/minutes.txt # システムプロンプト
-├── 議事録ひな型.docx
-├── requirements.txt
-└── .env.example
+```text
+web/
+├── src/app/                 # 画面・API
+├── src/components/          # ログイン・議事録画面
+├── src/lib/                 # 認証・抽出・Claude・数値照合・Word生成
+├── assets/議事録ひな型.docx # ひな型の正本
+├── prompts/minutes.txt      # AI指示書の正本
+├── .env.example
+└── package.json
 ```
 
-## デプロイ（Streamlit Cloud）
+詳細は `web/README.md` を参照してください。
 
-1. このフォルダをGitHubリポジトリにpush（`議事録ひな型.docx` を含める）
-2. [share.streamlit.io](https://share.streamlit.io) でリポジトリを接続
-3. Secrets に設定:
-   - `ANTHROPIC_API_KEY`
-   - `APP_ACCESS_PASSWORD`
-4. 再デプロイ後、パスワードなしでは入力画面に到達できないことを確認
+## Vercelへの反映
+
+```bash
+cd web
+npm run build
+vercel deploy --prod
+```
+
+Vercelには次の環境変数が必要です。
+
+- `ANTHROPIC_API_KEY`
+- `APP_ACCESS_PASSWORD`
