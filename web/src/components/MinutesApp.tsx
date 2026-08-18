@@ -56,18 +56,18 @@ function InputBlock(props: {
           <label>
             <input
               type="radio"
-              checked={mode === "paste"}
-              onChange={() => onMode("paste")}
-            />
-            直接貼り付け
-          </label>
-          <label>
-            <input
-              type="radio"
               checked={mode === "file"}
               onChange={() => onMode("file")}
             />
             ファイルをアップロード
+          </label>
+          <label>
+            <input
+              type="radio"
+              checked={mode === "paste"}
+              onChange={() => onMode("paste")}
+            />
+            直接貼り付け
           </label>
         </div>
       ) : null}
@@ -95,8 +95,8 @@ function InputBlock(props: {
 }
 
 export function MinutesApp({ apiConfigured, onLogout }: Props) {
-  const [transcriptMode, setTranscriptMode] = useState<InputMode>("paste");
-  const [agendaMode, setAgendaMode] = useState<InputMode>("paste");
+  const [transcriptMode, setTranscriptMode] = useState<InputMode>("file");
+  const [agendaMode, setAgendaMode] = useState<InputMode>("file");
   const [transcriptText, setTranscriptText] = useState("");
   const [agendaText, setAgendaText] = useState("");
   const [transcriptFile, setTranscriptFile] = useState<File | null>(null);
@@ -203,7 +203,7 @@ export function MinutesApp({ apiConfigured, onLogout }: Props) {
           title="① 発言ログ（文字起こし）"
           required
           allowPaste
-          pastePlaceholder="Synclogからコピーした話者ラベル付き文字起こしを貼り付けてください"
+          pastePlaceholder="コピーした会議の文字起こしを貼り付けてください"
           accept=".txt,.docx,text/plain"
           mode={transcriptMode}
           text={transcriptText}
