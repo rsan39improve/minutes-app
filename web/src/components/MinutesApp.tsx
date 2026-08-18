@@ -183,7 +183,7 @@ export function MinutesApp({ apiConfigured, onLogout }: Props) {
             <span className="badge">Internal</span>
           </div>
           <p className="caption">
-            Synclogの文字起こしデータを貼り付け、ボタンを押すと議事録が作成できます。
+            会議の文字起こしデータを貼り付け、ボタンを押すと議事録が作成できます。
           </p>
         </div>
         <button type="button" className="linkish" onClick={onLogout}>
