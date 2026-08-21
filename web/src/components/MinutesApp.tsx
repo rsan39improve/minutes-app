@@ -25,6 +25,7 @@ function InputBlock(props: {
   allowPaste: boolean;
   pastePlaceholder: string;
   accept: string;
+  uploadFormats: string;
   mode: InputMode;
   text: string;
   file: File | null;
@@ -38,6 +39,7 @@ function InputBlock(props: {
     allowPaste,
     pastePlaceholder,
     accept,
+    uploadFormats,
     mode,
     text,
     file,
@@ -59,7 +61,7 @@ function InputBlock(props: {
               checked={mode === "file"}
               onChange={() => onMode("file")}
             />
-            ファイルをアップロード
+            ファイルをアップロード（{uploadFormats}）
           </label>
           <label>
             <input
@@ -70,7 +72,11 @@ function InputBlock(props: {
             直接貼り付け
           </label>
         </div>
-      ) : null}
+      ) : (
+        <div className="mode-row">
+          <span>ファイルをアップロード（{uploadFormats}）</span>
+        </div>
+      )}
 
       {allowPaste && mode === "paste" ? (
         <textarea
@@ -205,6 +211,7 @@ export function MinutesApp({ apiConfigured, onLogout }: Props) {
           allowPaste
           pastePlaceholder="コピーした会議の文字起こしを貼り付けてください"
           accept=".txt,.docx,text/plain"
+          uploadFormats=".txt / .docx"
           mode={transcriptMode}
           text={transcriptText}
           file={transcriptFile}
@@ -218,6 +225,7 @@ export function MinutesApp({ apiConfigured, onLogout }: Props) {
           allowPaste
           pastePlaceholder="会議の次第があれば貼り付けてください（なければ空のままでOK）"
           accept=".txt,.docx,.pdf,text/plain,application/pdf"
+          uploadFormats=".txt / .docx / .pdf"
           mode={agendaMode}
           text={agendaText}
           file={agendaFile}
@@ -231,6 +239,7 @@ export function MinutesApp({ apiConfigured, onLogout }: Props) {
           allowPaste={false}
           pastePlaceholder=""
           accept=".pdf,.docx,.txt,application/pdf,text/plain"
+          uploadFormats=".txt / .docx / .pdf"
           mode="file"
           text=""
           file={materialsFile}
