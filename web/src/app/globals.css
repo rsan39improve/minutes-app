@@ -264,3 +264,59 @@ body {
   margin: 0.25rem 0;
   line-height: 1.6;
 }
+
+@media (max-width: 640px) {
+  .page {
+    padding: 12px 10px 32px;
+  }
+
+  .panel {
+    padding: 20px 14px 24px;
+    box-shadow: 3px 3px 0 rgba(15, 23, 42, 0.28);
+  }
+
+  .topbar-row {
+    gap: 0.5rem;
+  }
+
+  .topbar-row > div {
+    min-width: 0;
+  }
+
+  .brand {
+    font-size: 1.4rem;
+  }
+
+  .linkish {
+    flex-shrink: 0;
+  }
+
+  .card {
+    padding: 0.8rem;
+    box-shadow: 2px 2px 0 var(--ink);
+  }
+
+  .mode-row {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .mode-row label {
+    align-items: flex-start;
+  }
+
+  input[type="file"] {
+    width: 100%;
+    max-width: 100%;
+    font-size: 0.85rem;
+  }
+
+  .file-name,
+  .preview {
+    overflow-wrap: anywhere;
+  }
+
+  .cta {
+    box-shadow: 2px 2px 0 #64748b;
+  }
+}
