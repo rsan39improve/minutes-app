@@ -2,6 +2,10 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import type { MinutesData } from "@/lib/types";
+import {
+  MAX_TOTAL_UPLOAD_BYTES,
+  MAX_TOTAL_UPLOAD_LABEL,
+} from "@/lib/upload-limits";
 
 type InputMode = "paste" | "file";
 
@@ -117,12 +121,25 @@ export function MinutesApp({ apiConfigured, onLogout }: Props) {
   const [docxBase64, setDocxBase64] = useState<string | null>(null);
   const [filename, setFilename] = useState("議事録.docx");
 
+  const totalUploadBytes =
+    (transcriptMode === "file" ? transcriptFile?.size || 0 : 0) +
+    (agendaMode === "file" ? agendaFile?.size || 0 : 0) +
+    (materialsFile?.size || 0);
+  const uploadTooLarge = totalUploadBytes > MAX_TOTAL_UPLOAD_BYTES;
+
   const canSubmit = useMemo(() => {
     const hasTranscript =
       (transcriptMode === "paste" && transcriptText.trim().length > 0) ||
       (transcriptMode === "file" && !!transcriptFile);
-    return hasTranscript && apiConfigured && !loading;
-  }, [transcriptMode, transcriptText, transcriptFile, apiConfigured, loading]);
+    return hasTranscript && apiConfigured && !loading && !uploadTooLarge;
+  }, [
+    transcriptMode,
+    transcriptText,
+    transcriptFile,
+    apiConfigured,
+    loading,
+    uploadTooLarge,
+  ]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -205,6 +222,15 @@ export function MinutesApp({ apiConfigured, onLogout }: Props) {
 
       <h2 className="sec">入力情報</h2>
       <form onSubmit={onSubmit} className="stack">
+        <p className="hint">
+          ファイルをアップロードする場合、3つのファイルの合計容量は
+          {MAX_TOTAL_UPLOAD_LABEL}までです。
+        </p>
+        {uploadTooLarge ? (
+          <p className="error">
+            ファイルの合計容量を{MAX_TOTAL_UPLOAD_LABEL}以下にしてください。
+          </p>
+        ) : null}
         <InputBlock
           title="① 発言ログ（文字起こし）"
           required
