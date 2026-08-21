@@ -251,7 +251,7 @@ export function MinutesApp({ apiConfigured, onLogout }: Props) {
         {error ? <p className="error">{error}</p> : null}
 
         <button type="submit" className="cta" disabled={!canSubmit}>
-          {loading ? "AIが議事録を再構成中…" : "📝 議事録を作成する"}
+          {loading ? "AIが議事録を作成中…" : "📝 議事録を作成する"}
         </button>
       </form>
 
