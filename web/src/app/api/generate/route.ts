@@ -4,6 +4,10 @@ import { extractTextFromUpload, normalizeTranscript } from "@/lib/extractor";
 import { extractMinutes } from "@/lib/llm";
 import { applyNumberCheck, collectConfirmationTags } from "@/lib/number-check";
 import { buildMinutesDocx } from "@/lib/word-builder";
+import {
+  MAX_TOTAL_UPLOAD_BYTES,
+  MAX_TOTAL_UPLOAD_LABEL,
+} from "@/lib/upload-limits";
 
 export const maxDuration = 120;
 
@@ -39,6 +43,23 @@ export async function POST(request: Request) {
 
   try {
     const form = await request.formData();
+    const totalUploadBytes = [
+      "transcriptFile",
+      "agendaFile",
+      "materialsFile",
+    ].reduce((total, key) => {
+      const file = form.get(key);
+      return total + (file && typeof file !== "string" ? file.size : 0);
+    }, 0);
+    if (totalUploadBytes > MAX_TOTAL_UPLOAD_BYTES) {
+      return NextResponse.json(
+        {
+          error: `ファイルの合計容量を${MAX_TOTAL_UPLOAD_LABEL}以下にしてください。`,
+        },
+        { status: 413 },
+      );
+    }
+
     const transcriptPart = await readFieldText(
       form,
       "transcriptText",

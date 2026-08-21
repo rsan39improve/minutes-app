@@ -1,0 +1,2 @@
+export const MAX_TOTAL_UPLOAD_BYTES = 4_000_000;
+export const MAX_TOTAL_UPLOAD_LABEL = "4MB";
